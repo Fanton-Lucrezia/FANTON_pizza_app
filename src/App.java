@@ -4,6 +4,8 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.Response;
 
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Scanner;
 
@@ -43,16 +45,43 @@ public class App
             }
 
             //System.out.println(response.body().string());
-           /* saveToFile(pizze); //aggiorna il file
-            catch(IOException e) {
-                System.out.println("Errore");
-                Pizza[] backup = loadFromFile();
-                for(Pizza p : backup){
+            saveToFile(pizze); //aggiorna il file
+
+        } catch (IOException e) {
+            System.out.println("Errore");
+            Pizza[] backup = loadFromFile();
+            if (backup.length == 0) {
+                System.out.println("Nessun dato in backup.");
+            } else {
+                for (Pizza p : backup) {
                     System.out.println(p);
                 }
-            }*/
+            }
         }
     }
+
+    //array di pizze su file JSON locale
+    public void saveToFile(Pizza[] pizze) {
+        try (FileWriter writer = new FileWriter("pizze.json")) {
+            gson.toJson(pizze, writer);
+            System.out.println("Backup salvato su " + "pizze.json");
+        } catch (IOException e) {
+            System.out.println("Errore nel salvataggio del backup: " + e.getMessage());
+        }
+    }
+
+    //carica dal file JSON locale (array vuoto se non esiste)
+    public Pizza[] loadFromFile() {
+        try (FileReader reader = new FileReader("pizze.json")) {
+            Pizza[] pizze = gson.fromJson(reader, Pizza[].class);
+            System.out.println("Dati caricati dal backup locale (" + "pizze.json" + ").");
+            return pizze != null ? pizze : new Pizza[0];
+        } catch (IOException e) {
+            //array vuoto se file non trovato o ci sono errori
+            return new Pizza[0];
+        }
+    }
+
     public void run()
     {
         //System.out.printf("Ciao");
