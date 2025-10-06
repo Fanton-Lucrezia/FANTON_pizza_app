@@ -48,7 +48,7 @@ public class App
             saveToFile(pizze); //aggiorna il file
 
         } catch (IOException e) {
-            System.out.println("Errore");
+            System.out.println("Errore" + e.getMessage());
             Pizza[] backup = loadFromFile();
             if (backup.length == 0) {
                 System.out.println("Nessun dato in backup.");
@@ -69,11 +69,12 @@ public class App
                 .build();
 
         try (Response response = client.newCall(request).execute()) {
-            if (!response.isSuccessful()) throw new IOException("Errore post: " + response.code());
+            String respBody = response.body() != null ? response.body().string() : "";
+            if (!response.isSuccessful())
+                throw new IOException("Errore post: " + response.code() + (respBody.isEmpty() ? "" : " - " + respBody));
             System.out.println("Pizza aggiunta sul server remoto.");
-            //aggiorno backup locale
+            //aggiorno backup locale (fetchRemotePizze fa una nuova richiesta)
             try {
-                //richiedo la lista aggiornata + la salvo
                 Pizza[] pizze = fetchRemotePizze();
                 saveToFile(pizze);
             } catch (IOException e) {
@@ -89,7 +90,8 @@ public class App
                 .build();
 
         try (Response response = client.newCall(request).execute()) {
-            if (!response.isSuccessful()) throw new IOException("Errore DELETE: " + response.code());
+            String respBody = response.body() != null ? response.body().string() : "";
+            if (!response.isSuccessful()) throw new IOException("Errore DELETE: " + response.code() + (respBody.isEmpty() ? "" : " - " + respBody));
             System.out.println("Pizza eliminata dal server remoto.");
             try {
                 Pizza[] pizze = fetchRemotePizze();
