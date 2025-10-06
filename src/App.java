@@ -10,9 +10,13 @@ import java.util.Scanner;
 public class App
 {
     public OkHttpClient client;
+    public Gson gson;
+    public String nomeFile;
 
     public App(){
         client = new OkHttpClient();
+        gson = new Gson();
+        nomeFile = "pizze.json";
     }
 
     public void doGet() throws IOException{
@@ -28,12 +32,25 @@ public class App
             }
 
             //DESERIALIZZA IL JSON DEL BODY
-            Gson gson = new Gson();
+            //Gson gson = new Gson();
             Pizza[] pizze = gson.fromJson(response.body().string(), Pizza[].class);
-            for(Pizza p : pizze){
-                System.out.println(p);
+            if (pizze == null || pizze.length == 0) {
+                System.out.println("Nessuna pizza sul server remoto");
+            } else {
+                for(Pizza p : pizze){
+                    System.out.println(p);
+                }
             }
+
             //System.out.println(response.body().string());
+           /* saveToFile(pizze); //aggiorna il file
+            catch(IOException e) {
+                System.out.println("Errore");
+                Pizza[] backup = loadFromFile();
+                for(Pizza p : backup){
+                    System.out.println(p);
+                }
+            }*/
         }
     }
     public void run()
