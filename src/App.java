@@ -1,48 +1,128 @@
 import com.google.gson.Gson;
+import de.vandermeer.asciitable.AsciiTable;
 import okhttp3.*;
 
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Scanner;
 
-public class App
-{
+public class App {
     public OkHttpClient client;
     public Gson gson;
     public String nomeFile;
     public MediaType JSON;
 
-    public App(){
+    public App() {
         client = new OkHttpClient();
         gson = new Gson();
         nomeFile = "pizze.json";
         JSON = MediaType.parse("application/json; charset=utf-8");
     }
 
-    public void doGet() throws IOException{
+    public void menu() {
+        Scanner sc = new Scanner(System.in);
+        while (true) {
+
+            System.out.println("\n    MENU PIZZERIA    ");
+            System.out.println("1. Visualizza menù");
+            System.out.println("2. Visualizza singola pizza");
+            System.out.println("3. Crea pizza");
+            System.out.println("4. Aggiorna pizza");
+            System.out.println("5. Elimina Pizza");
+
+            System.out.println("0. Esci");
+            System.out.print("Scegli il n.: ");
+
+            int operation = -1;
+            try {
+                operation = sc.nextInt();
+                sc.nextLine();
+            } catch (Exception e) {
+                System.out.println("Inserisci un numero");
+                sc.nextLine();
+                continue;
+            }
+            //int operation = sc.nextInt();
+
+            if (operation < 0 || operation > 5) {
+                System.out.println("Sbagliato riprova");
+                continue;
+            }
+            System.out.println("Hai selezionato: " + operation);
+            switch (operation) {
+                case 1:
+                    try {
+                        Pizza[] pizze = getAllPizze();
+                        AsciiTable asciiTable = new AsciiTable();
+                        asciiTable.addRule();
+                        asciiTable.addRow("Nome", "Ingredienti", "Prezzo");
+                        asciiTable.addRule();
+                        for (Pizza pizza : pizze) {
+                            asciiTable.addRow(pizza.nome, pizza.ingredienti, pizza.prezzo);
+                            asciiTable.addRule();
+                        }
+                        System.out.println(asciiTable.render());
+                    } catch (Exception e) {
+                        System.out.println("Errore su get: " + e.getClass());
+                    }
+                    break;
+                case 2:
+                    try {
+                        System.out.print("Inserisci l'ID: ");
+                        String op = sc.nextLine();
+                        Pizza pizza = getSinglePizza(op);
+                        AsciiTable asciiTable = new AsciiTable();
+                        asciiTable.addRule();
+                        asciiTable.addRow("Nome", "Ingredienti", "Prezzo");
+                        asciiTable.addRule();
+                        asciiTable.addRow(pizza.nome, pizza.ingredienti, pizza.prezzo);
+                        asciiTable.addRule();
+                        System.out.println(asciiTable.render());
+
+                    } catch (Exception e) {
+                        System.out.println("Inserisci l'ID alphanumerico");
+                        sc.nextLine();
+                        continue;
+                    }
+                    //int operation = sc.nextInt();
+                    break;
+                case 3:
+                    break;
+                case 4:
+                    break;
+                case 5:
+                    break;
+                default:
+            }
+        }
+    }
+
+    public Pizza[] getAllPizze() {
         Request request = new Request.Builder()
-                .url("https://crudcrud.com/api/5dfb54bea3524604af943f92764499b2/pizze/")
+                .url("https://crudcrud.com/api/1f3d7228428d436ab5de9d1ceeae3308/pizze/")
                 .build();
+        Pizza[] pizze = null;
+
         try (Response response = client.newCall(request).execute()) {
             if (!response.isSuccessful()) throw new IOException("Errore get: " + response);
 
-            Headers responseHeaders = response.headers();
-            for (int i = 0; i < responseHeaders.size(); i++) {
-                System.out.println(responseHeaders.name(i) + ": " + responseHeaders.value(i));
-            }
+//            Headers responseHeaders = response.headers();
+//            for (int i = 0; i < responseHeaders.size(); i++) {
+//                System.out.println(responseHeaders.name(i) + ": " + responseHeaders.value(i));
+//            }
 
             //DESERIALIZZA IL JSON DEL BODY
             //Gson gson = new Gson();
-            Pizza[] pizze = gson.fromJson(response.body().string(), Pizza[].class);
+            pizze = gson.fromJson(response.body().string(), Pizza[].class);
             if (pizze == null || pizze.length == 0) {
                 System.out.println("Nessuna pizza sul server remoto");
             } else {
-                for(Pizza p : pizze){
+                for (Pizza p : pizze) {
                     System.out.println(p);
                 }
             }
+
 
             //System.out.println(response.body().string());
             saveToFile(pizze); //aggiorna il file
@@ -58,13 +138,61 @@ public class App
                 }
             }
         }
+        return pizze;
+
+    }
+
+    public Pizza getSinglePizza(String id) {
+        Request request = new Request.Builder()
+                .url("https://crudcrud.com/api/1f3d7228428d436ab5de9d1ceeae3308/pizze/"+id)
+                .build();
+        Pizza pizza = null;
+
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) throw new IOException("Errore get: " + response);
+
+//            Headers responseHeaders = response.headers();
+//            for (int i = 0; i < responseHeaders.size(); i++) {
+//                System.out.println(responseHeaders.name(i) + ": " + responseHeaders.value(i));
+//            }
+
+            //DESERIALIZZA IL JSON DEL BODY
+            //Gson gson = new Gson();
+            pizza = gson.fromJson(response.body().string(), Pizza.class);
+            if (pizza == null ) {
+                System.out.println("Nessuna pizza sul server remoto");
+            } else {
+
+                System.out.println(pizza);
+            }
+
+
+            //System.out.println(response.body().string());
+
+        } catch (IOException e) {
+            System.out.println("Errore" + e.getMessage());
+            Pizza[] backup = loadFromFile();
+            if (backup.length == 0) {
+                System.out.println("Nessun dato in backup.");
+            } else {
+
+                System.out.println(pizza);
+
+            }
+        }
+        return pizza;
+
+    }
+
+    public void createPizza(String nome, String ingredienti, String prezzo) {
+        MediaType JSON = MediaType.get("application/json; charset=utf-8");
     }
 
     public void doPost(Pizza pizza) throws IOException {
         String json = gson.toJson(pizza);
         RequestBody body = RequestBody.create(JSON, json);
         Request request = new Request.Builder()
-                .url("https://crudcrud.com/api/5dfb54bea3524604af943f92764499b2/pizze/")
+                .url("https://crudcrud.com/api/1f3d7228428d436ab5de9d1ceeae3308/pizze/")
                 .post(body)
                 .build();
 
@@ -85,13 +213,14 @@ public class App
 
     public void doDelete(String id) throws IOException {
         Request request = new Request.Builder()
-                .url("https://crudcrud.com/api/5dfb54bea3524604af943f92764499b2/pizze/" + id)
+                .url("https://crudcrud.com/api/1f3d7228428d436ab5de9d1ceeae3308/pizze/" + id)
                 .delete()
                 .build();
 
         try (Response response = client.newCall(request).execute()) {
             String respBody = response.body() != null ? response.body().string() : "";
-            if (!response.isSuccessful()) throw new IOException("Errore DELETE: " + response.code() + (respBody.isEmpty() ? "" : " - " + respBody));
+            if (!response.isSuccessful())
+                throw new IOException("Errore DELETE: " + response.code() + (respBody.isEmpty() ? "" : " - " + respBody));
             System.out.println("Pizza eliminata dal server remoto.");
             try {
                 Pizza[] pizze = fetchRemotePizze();
@@ -105,7 +234,7 @@ public class App
     //restituisce l'array di pizze dal server
     private Pizza[] fetchRemotePizze() throws IOException {
         Request request = new Request.Builder()
-                .url("https://crudcrud.com/api/5dfb54bea3524604af943f92764499b2/pizze/")
+                .url("https://crudcrud.com/api/1f3d7228428d436ab5de9d1ceeae3308/pizze/")
                 .build();
         try (Response response = client.newCall(request).execute()) {
             if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
@@ -114,6 +243,7 @@ public class App
             return pizze != null ? pizze : new Pizza[0];
         }
     }
+
     //array di pizze su file JSON locale
     public void saveToFile(Pizza[] pizze) {
         try (FileWriter writer = new FileWriter(nomeFile)) {
@@ -136,17 +266,17 @@ public class App
         }
     }
 
-    public void run()
-    {
-        /*//System.out.printf("Ciao");
-        try {
+    public void run() {
+        menu();
+        //System.out.printf("Ciao");
+        /*try {
             doGet();
         } catch (IOException e) {
             throw new RuntimeException(e);
-        }
+        }*/
         //System.out.println(a);
-        */
-        Scanner scanner = new Scanner(System.in);
+
+        /*Scanner scanner = new Scanner(System.in);
         boolean running = true;
 
         while (running) {
@@ -291,6 +421,6 @@ public class App
             }
         }
 
-        scanner.close();
+        scanner.close();*/
     }
 }

@@ -4,6 +4,12 @@ public class Pizza {
     public double prezzo;
     public String ID;
 
+    public Pizza(String nome, String ingredienti, double prezzo) {
+        this.nome = nome;
+        this.ingredienti = ingredienti;
+        this.prezzo = prezzo;
+    }
+
 
     @Override
     public String toString() {
