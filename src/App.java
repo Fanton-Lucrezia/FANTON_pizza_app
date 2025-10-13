@@ -10,19 +10,22 @@ import java.util.Scanner;
 public class App {
     public OkHttpClient client;
     public Gson gson;
+    public String url;
     public String nomeFile;
     public MediaType JSON;
 
     public App() {
         client = new OkHttpClient();
         gson = new Gson();
+        url = "https://crudcrud.com/api/7526064be3c14395a6b35ff3be7e578e";
         nomeFile = "pizze.json";
-        JSON = MediaType.parse("application/json; charset=utf-8");
+        JSON = MediaType.get("application/json; charset=utf-8");
     }
 
     public void menu() {
         Scanner sc = new Scanner(System.in);
-        while (true) {
+        boolean running= true;
+        while (running) {
 
             System.out.println("\n    MENU PIZZERIA    ");
             System.out.println("1. Visualizza menù");
@@ -56,10 +59,10 @@ public class App {
                         Pizza[] pizze = getAllPizze();
                         AsciiTable asciiTable = new AsciiTable();
                         asciiTable.addRule();
-                        asciiTable.addRow("Nome", "Ingredienti", "Prezzo");
+                        asciiTable.addRow("Nome", "Ingredienti", "Prezzo", "ID");
                         asciiTable.addRule();
                         for (Pizza pizza : pizze) {
-                            asciiTable.addRow(pizza.nome, pizza.ingredienti, pizza.prezzo);
+                            asciiTable.addRow(pizza.nome, pizza.ingredienti, pizza.prezzo, pizza._id);
                             asciiTable.addRule();
                         }
                         System.out.println(asciiTable.render());
@@ -74,33 +77,70 @@ public class App {
                         Pizza pizza = getSinglePizza(op);
                         AsciiTable asciiTable = new AsciiTable();
                         asciiTable.addRule();
-                        asciiTable.addRow("Nome", "Ingredienti", "Prezzo");
+                        asciiTable.addRow("Nome", "Ingredienti", "Prezzo", "ID");
                         asciiTable.addRule();
-                        asciiTable.addRow(pizza.nome, pizza.ingredienti, pizza.prezzo);
+                        asciiTable.addRow(pizza.nome, pizza.ingredienti, pizza.prezzo, pizza._id);
                         asciiTable.addRule();
                         System.out.println(asciiTable.render());
 
                     } catch (Exception e) {
-                        System.out.println("Inserisci l'ID alphanumerico");
+                        System.out.println("Inserisci un ID alphanumerico");
                         sc.nextLine();
                         continue;
                     }
                     //int operation = sc.nextInt();
                     break;
                 case 3:
+                    try {
+                        System.out.print("Nome pizza: ");
+                        String nome = sc.nextLine();
+                        System.out.print("Ingredienti: ");
+                        String ingredienti = sc.nextLine();
+                        System.out.print("Prezzo (es. 7.5): ");
+                        String prezzoInput = sc.nextLine();
+                        Double prezzo;
+                        try {
+                            prezzo = Double.parseDouble(prezzoInput);
+                        } catch (NumberFormatException e) {
+                            System.out.println("Prezzo non valido. Operazione annullata.");
+                            break;
+                        }
+                        createPizza(nome, ingredienti, prezzo);
+                    } catch (Exception e) {
+                        System.out.println("Errore durante la creazione: " + e.getMessage());
+                    }
                     break;
                 case 4:
+                    try {
+                        System.out.println("Inserire l'ID della pizza da aggiornare: ");
+                        String id= sc.nextLine();
+                        updatePizza(id);
+                    } catch (Exception e) {
+                        System.out.println("Errore: " + e.getMessage());
+                    }
                     break;
                 case 5:
+                    try {
+                        System.out.println("Inserire l'ID della pizza da eliminare: ");
+                        String id= sc.nextLine();
+                        deletePizza(id);
+                    } catch (Exception e) {
+                        System.out.println("Errore: " + e.getMessage());
+                    }
+                    break;
+                case 0:
+                    running = false;
+                    System.out.println("Arrivederci e alla prossima!");
                     break;
                 default:
+                    System.out.println("Scelta non valida.");
             }
         }
     }
 
     public Pizza[] getAllPizze() {
         Request request = new Request.Builder()
-                .url("https://crudcrud.com/api/1f3d7228428d436ab5de9d1ceeae3308/pizze/")
+                .url(url + "/pizze/")
                 .build();
         Pizza[] pizze = null;
 
@@ -122,29 +162,26 @@ public class App {
                     System.out.println(p);
                 }
             }
-
-
             //System.out.println(response.body().string());
-            saveToFile(pizze); //aggiorna il file
+            //saveToFile(pizze); //aggiorna il file
 
         } catch (IOException e) {
             System.out.println("Errore" + e.getMessage());
-            Pizza[] backup = loadFromFile();
+            /*Pizza[] backup = loadFromFile();
             if (backup.length == 0) {
                 System.out.println("Nessun dato in backup.");
             } else {
                 for (Pizza p : backup) {
                     System.out.println(p);
                 }
-            }
+            }*/
         }
         return pizze;
-
     }
 
     public Pizza getSinglePizza(String id) {
         Request request = new Request.Builder()
-                .url("https://crudcrud.com/api/1f3d7228428d436ab5de9d1ceeae3308/pizze/"+id)
+                .url(url + "/pizze/"+id)
                 .build();
         Pizza pizza = null;
 
@@ -165,8 +202,6 @@ public class App {
 
                 System.out.println(pizza);
             }
-
-
             //System.out.println(response.body().string());
 
         } catch (IOException e) {
@@ -181,18 +216,104 @@ public class App {
             }
         }
         return pizza;
+    }
+
+    public void createPizza(String nome, String ingredienti, Double prezzo) {
+        Pizza pizza = new Pizza(nome, ingredienti, prezzo);
+        //JSON
+        String json = gson.toJson(pizza);
+
+        RequestBody body = RequestBody.create(JSON, json);
+        Request request = new Request.Builder()
+                .url(url + "/pizze/")
+                .post(body)
+                .build();
+        //MediaType JSON = MediaType.get("application/json; charset=utf-8");
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                System.out.println("Errore: " + response);
+                return;
+            }
+            //DESERIALIZZA IL JSON DEL BODY
+            Pizza nuovaPizza = gson.fromJson(response.body().string(), Pizza.class);
+            System.out.println("Nuova pizza creata: " +  nuovaPizza);
+        }
+        catch (IOException e){
+            System.out.println("Errore" + e.getMessage());
+        }
+    }
+
+
+    public void updatePizza(String id) {
+        Pizza unupdatedPizza = getSinglePizza(id);
+        if (unupdatedPizza == null) {
+            System.out.println("Non esiste nessuna pizza con questo id");
+            return;
+        }
+        Scanner sc = new Scanner(System.in);
+        System.out.println("Modifica " + unupdatedPizza.nome + " in: ");
+        String nomeNew = sc.nextLine();
+        String nome = nomeNew.isEmpty() ? unupdatedPizza.nome : nomeNew;
+        System.out.println("Modifica " + unupdatedPizza.ingredienti + " in: ");
+        String ingredientiNew = sc.nextLine();
+        String ingredienti = ingredientiNew.isEmpty() ? unupdatedPizza.ingredienti : ingredientiNew;
+        System.out.println("Modifica " + unupdatedPizza.prezzo + " in: ");
+        String prezzoNew = sc.nextLine(); //line perchè con double non potrei usare isEmpty
+        Double prezzo = prezzoNew.isEmpty() ? unupdatedPizza.prezzo : Double.parseDouble(prezzoNew);
+
+        //similea crea pizza
+        Pizza updatedPizza = new Pizza(nome, ingredienti, prezzo);
+        String json = gson.toJson(updatedPizza);
+
+        RequestBody body = RequestBody.create(JSON, json);
+        Request request = new Request.Builder()
+                .url(url + "/pizze/" +id)
+                .put(body)
+                .build();
+        //MediaType JSON = MediaType.get("application/json; charset=utf-8");
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                System.out.println("Errore1: " + response);
+                return;
+            }
+            //DESERIALIZZA IL JSON DEL BODY
+            System.out.println("Pizza aggiornata");
+        }
+        catch (IOException e){
+            System.out.println("Errore2" + e.getMessage());
+        }
 
     }
 
-    public void createPizza(String nome, String ingredienti, String prezzo) {
-        MediaType JSON = MediaType.get("application/json; charset=utf-8");
+    public void deletePizza(String id) {
+        Request request = new Request.Builder()
+                .url(url + "/pizze/" +id)
+                .delete()
+                .build();
+        try (Response response = client.newCall(request).execute()) {
+            if (!response.isSuccessful()) {
+                System.out.println("Errore1: " + response);
+                return;
+            }
+            //DESERIALIZZA IL JSON DEL BODY
+            System.out.println("Pizza eliminata");
+        }
+        catch (IOException e){
+            System.out.println("Errore2" + e.getMessage());
+        }
     }
+
+
+
+
+
+
 
     public void doPost(Pizza pizza) throws IOException {
         String json = gson.toJson(pizza);
         RequestBody body = RequestBody.create(JSON, json);
         Request request = new Request.Builder()
-                .url("https://crudcrud.com/api/1f3d7228428d436ab5de9d1ceeae3308/pizze/")
+                .url(url + "/pizze/")
                 .post(body)
                 .build();
 
@@ -213,7 +334,7 @@ public class App {
 
     public void doDelete(String id) throws IOException {
         Request request = new Request.Builder()
-                .url("https://crudcrud.com/api/1f3d7228428d436ab5de9d1ceeae3308/pizze/" + id)
+                .url(url + "/pizze/" + id)
                 .delete()
                 .build();
 
@@ -234,7 +355,7 @@ public class App {
     //restituisce l'array di pizze dal server
     private Pizza[] fetchRemotePizze() throws IOException {
         Request request = new Request.Builder()
-                .url("https://crudcrud.com/api/1f3d7228428d436ab5de9d1ceeae3308/pizze/")
+                .url(url + "/pizze/")
                 .build();
         try (Response response = client.newCall(request).execute()) {
             if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
@@ -268,6 +389,8 @@ public class App {
 
     public void run() {
         menu();
+    }
+}
         //System.out.printf("Ciao");
         /*try {
             doGet();
@@ -422,5 +545,5 @@ public class App {
         }
 
         scanner.close();*/
-    }
-}
+
+
