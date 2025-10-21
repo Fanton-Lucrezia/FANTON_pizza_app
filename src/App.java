@@ -5,6 +5,10 @@ import okhttp3.*;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Scanner;
 
 public class App {
@@ -146,12 +150,6 @@ public class App {
 
         try (Response response = client.newCall(request).execute()) {
             if (!response.isSuccessful()) throw new IOException("Errore get: " + response);
-
-//            Headers responseHeaders = response.headers();
-//            for (int i = 0; i < responseHeaders.size(); i++) {
-//                System.out.println(responseHeaders.name(i) + ": " + responseHeaders.value(i));
-//            }
-
             //DESERIALIZZA IL JSON DEL BODY
             //Gson gson = new Gson();
             pizze = gson.fromJson(response.body().string(), Pizza[].class);
@@ -167,14 +165,6 @@ public class App {
 
         } catch (IOException e) {
             System.out.println("Errore" + e.getMessage());
-            /*Pizza[] backup = loadFromFile();
-            if (backup.length == 0) {
-                System.out.println("Nessun dato in backup.");
-            } else {
-                for (Pizza p : backup) {
-                    System.out.println(p);
-                }
-            }*/
         }
         return pizze;
     }
@@ -187,12 +177,6 @@ public class App {
 
         try (Response response = client.newCall(request).execute()) {
             if (!response.isSuccessful()) throw new IOException("Errore get: " + response);
-
-//            Headers responseHeaders = response.headers();
-//            for (int i = 0; i < responseHeaders.size(); i++) {
-//                System.out.println(responseHeaders.name(i) + ": " + responseHeaders.value(i));
-//            }
-
             //DESERIALIZZA IL JSON DEL BODY
             //Gson gson = new Gson();
             pizza = gson.fromJson(response.body().string(), Pizza.class);
@@ -206,14 +190,6 @@ public class App {
 
         } catch (IOException e) {
             System.out.println("Errore" + e.getMessage());
-            /*Pizza[] backup = loadFromFile();
-            if (backup.length == 0) {
-                System.out.println("Nessun dato in backup.");
-            } else {
-
-                System.out.println(pizza);
-
-            }*/
         }
         return pizza;
     }
@@ -303,42 +279,48 @@ public class App {
         }
     }
 
-    /*//restituisce l'array di pizze dal server
-    private Pizza[] fetchRemotePizze() throws IOException {
-        Request request = new Request.Builder()
-                .url(url + "/pizze/")
-                .build();
-        try (Response response = client.newCall(request).execute()) {
-            if (!response.isSuccessful()) throw new IOException("Unexpected code " + response);
-            String bodyStr = response.body().string();
-            Pizza[] pizze = gson.fromJson(bodyStr, Pizza[].class);
-            return pizze != null ? pizze : new Pizza[0];
+    public void testSqlite(){
+        String DB_URL = "jdbc:sqlite:pizza.db";
+
+        try {
+            java.sql.Connection conn = DriverManager.getConnection(DB_URL);
+            if(conn != null){
+                System.out.println("Connessione al DB Sqlite avvenuta con successo!");
+            }
+
+            //""" per non dover concatenare
+            String sqlCreateTable = """    
+                CREATE TABLE IF NOT EXISTS pizza (
+                    id VARCHAR(50) PRIMARY KEY,
+                    nome VARCHAR(50),
+                    ingredienti VARCHAR(20),
+                    prezzo DOUBLE);
+                """;
+
+            Statement statement = conn.createStatement();
+            statement.executeUpdate(sqlCreateTable);
+            System.out.println("La tabella pizze è stata creata con successo");
+
+            String sqlIsert= " INSERT INTO pizza VALUES(?,?,?,?); ";
+
+            PreparedStatement preparedStatement = conn.prepareStatement(sqlIsert);
+            preparedStatement.setString(1, "abcdef");
+            preparedStatement.setString(2, "Margherta");
+            preparedStatement.setString(3, "Mozzarella, Pomodoro");
+            preparedStatement.setDouble(4, 6);
+            preparedStatement.execute();
+
+
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
         }
     }
 
-    //array di pizze su file JSON locale
-    public void saveToFile(Pizza[] pizze) {
-        try (FileWriter writer = new FileWriter(nomeFile)) {
-            gson.toJson(pizze, writer);
-            System.out.println("Backup salvato su " + nomeFile);
-        } catch (IOException e) {
-            System.out.println("Errore nel salvataggio del backup: " + e.getMessage());
-        }
-    }
 
-    //carica dal file JSON locale (array vuoto se non esiste)
-    public Pizza[] loadFromFile() {
-        try (FileReader reader = new FileReader(nomeFile)) {
-            Pizza[] pizze = gson.fromJson(reader, Pizza[].class);
-            System.out.println("Dati caricati dal backup locale (" + nomeFile + ").");
-            return pizze != null ? pizze : new Pizza[0];
-        } catch (IOException e) {
-            //array vuoto se file non trovato o ci sono errori
-            return new Pizza[0];
-        }
-    }*/
 
     public void run() {
-        menu();
+        testSqlite();
+        return;
+        //menu();
     }
 }
